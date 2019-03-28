@@ -129,12 +129,19 @@ class JsonProperties {
 			objectid: dbId,
 			name: '',
 			externalId: this.ids [dbId],
-			properties: {}
+			properties: {},
+			parents: [],
 		} ;
 		var parent =this._read (dbId, result) ;
-		//while ( parent !== null && parent !== 1 )
-		//	parent =this._read (parent, result) ;
-		//result.properties =Object.keys (result.properties).map (function (elt) { return (result.properties [elt]) ; }) ;
+		while ( parent !== null && parent !== 1 )
+			parent =this._read (parent, result) ;
+		// result.properties =Object.keys (result.properties).map (function (elt) { return (result.properties [elt]) ; }) ;
+
+        // Trims the output so that we do not return objects with no meaningful data
+        if (result.name === '') {
+            return null;
+        }
+
 		return (result) ;
 	}
 
@@ -160,7 +167,7 @@ class JsonProperties {
 			}
 			if ( result.properties.hasOwnProperty (key) )
 				continue ;
-			result.propertiess [key] ={
+			result.properties [key] ={
 				category: attr [JsonProperties.iCATEGORY],
 				name: attr [JsonProperties.iNAME],
 				displayName: attr [JsonProperties.iDISPLAYNAME],
@@ -181,14 +188,21 @@ class JsonProperties {
 		for ( var i =propStart ; i < propStop ; i +=2 ) {
 			var attr =this.attrs [this.avs [i]] ;
 			var category =attr [JsonProperties.iCATEGORY] ;
+
+			if (category === '') {
+				category = 'Attributes';
+			} else if (category === null) {
+				category = 'General';
+			}
+
 			var key =attr [JsonProperties.iCATEGORY] + '/' + attr [JsonProperties.iNAME] ;
-			// if ( key === '__parent__/parent' ) {
-			// 	parent =parseInt (this.vals [this.avs [i + 1]]) ;
-			// 	result.parents.push (parent) ;
-			// 	continue ;
-			// }
+			if ( key === '__parent__/parent' ) {
+				parent =parseInt (this.vals [this.avs [i + 1]]) ;
+				result.parents.push (parent) ;
+				continue ;
+			}
 			if ( key === '__instanceof__/instanceof_objid' ) {
-				// Allright, we need to read teh definition
+				// Alright, we need to read teh definition
 				this._read (parseInt (this.vals [this.avs [i + 1]]), result) ;
 				continue ;
 			}
@@ -211,7 +225,7 @@ class JsonProperties {
 			if ( !result.properties.hasOwnProperty (category) )
 				result.properties [category] ={} ;
 
-			key =attr [JsonProperties.iDISPLAYNAME] ;
+			key = attr [JsonProperties.iNAME] ;
 			var value ='' ;
 			if ( attr [JsonProperties.iTYPE] === JsonProperties.tBoolean )
 				value =this.vals [this.avs [i + 1]] === 0 ? 'No' : 'Yes' ;
@@ -225,16 +239,17 @@ class JsonProperties {
 			if ( attr [JsonProperties.iUNIT] !== null )
 				value +=' ' + attr [JsonProperties.iUNIT] ;
 
-			//result.properties [category] [key] =value ;
+
 			if ( result.properties [category].hasOwnProperty (key) ) {
 				if ( !Array.isArray (result.properties [category] [key]) ) {
 					result.properties [category] [key] =[ result.properties [category] [key]] ;
 				}
-				result.properties [category] [key].push (value) ;
+				result.properties [category] [key].push(value) ;
 			} else {
-				result.properties [category] [key] =value ;
+				result.properties [category] [key] = value ;
 			}
 		}
+
 		// Sorting objects
 		Object.keys (result.properties).sort ().every (function (cat) {
 			var r ={} ;
@@ -661,3 +676,4 @@ router.get ('/:urn/ids/*', function (req, res) {
 }) ;
 
 module.exports =router ;
+
